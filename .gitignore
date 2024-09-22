@@ -1,8 +1,7 @@
+# Folders to ignore
 DATA/
 **/.ipynb_checkpoints/
-Saved Models/
-Scalers/
 
-
-
-
+# Files to ignore
+*.keras
+*.pickle
