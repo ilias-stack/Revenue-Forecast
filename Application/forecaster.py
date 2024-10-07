@@ -1,10 +1,23 @@
+import os
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import tensorflow as tf
 import pickle
 import pandas as pd
 import numpy as np
+from abc import ABC, abstractmethod
+
+
+
+# The abstract class that the forecasters should follow
+class Forecaster(ABC):
+    @abstractmethod
+    def predict(self, n_days: int = 1, data: pd.DataFrame = pd.DataFrame(), code6_activation_status: list = [True]) -> np.ndarray:
+        """Method to predict revenue for the next n_days (to be defined for each model)"""
+        pass
 
 # Prediction class that uses the LSTM Model trained in the notebooks
-class LSTMForecaster:
+class LSTMForecaster(Forecaster):
     # Defining static variables of the repositories where the necessary stuff is
     models_save_repo = "../Saved Models"
     scalers_save_repo = "../Scalers"
@@ -65,18 +78,18 @@ class LSTMForecaster:
         return empty_subscription_df,subscriptions_1_2_df,subscriptions_3_df,subscriptions_6_df,other_subscriptions_df
 
     # Method responsible for the prediction
-    def predict(self,n_days: int = 1, revenue_by_offer_data: pd.DataFrame = pd.DataFrame(), code6_activation_status: list = [True]) -> np.ndarray:
+    def predict(self,n_days: int = 1, data: pd.DataFrame = pd.DataFrame(), code6_activation_status: list = [True]) -> np.ndarray:
         assert n_days > 0 and n_days < 45, "The number of days should be a positive number and under 45 days ahead."
         
         # Ensure the list and the n_days match-up
         if len(code6_activation_status) != n_days:
             raise Exception("The number of days to predict must match the code6_activation list length!")
     
-        if revenue_by_offer_data.shape[0] < 300:
+        if data.shape[0] < 300:
             raise Exception("At least 30 days of data are required for all subscriptions!")
     
         # Split the data into different subscription types
-        empty_subscription_df, subscriptions_1_2_df, subscriptions_3_df, subscriptions_6_df, other_subscriptions_df = self.split_dataframes_by_subscription(revenue_by_offer_data)
+        empty_subscription_df, subscriptions_1_2_df, subscriptions_3_df, subscriptions_6_df, other_subscriptions_df = self.split_dataframes_by_subscription(data)
     
         predictions = []
     
@@ -136,7 +149,7 @@ class LSTMForecaster:
     
     
 # Prediction class that uses the XGBoost Model trained in the notebooks
-class XGBForecaster:
+class XGBForecaster(Forecaster):
     path = "../Saved Models/xgboost_model.pickle"
     def __init__(self):
         # Loading the model from the save location
@@ -159,7 +172,7 @@ class XGBForecaster:
         return df_copy
 
     # Method responsible for the prediction
-    def predict(self,n_days: int = 1, revenue_by_day_data: pd.DataFrame = pd.DataFrame(), code6_activation_status: list = [True]) -> np.ndarray:
+    def predict(self,n_days: int = 1, data: pd.DataFrame = pd.DataFrame(), code6_activation_status: list = [True]) -> np.ndarray:
         assert n_days > 0 and n_days < 45, "The number of days should be a positive number and under 45 days ahead."
         
         # Ensure the list and the n_days match-up
@@ -167,12 +180,12 @@ class XGBForecaster:
             raise Exception("The number of days to predict must match the code6_activation list length!")
         
         # Grouping the data by day so that even if the df contains the subscription it can handle it
-        revenue_by_day_data = revenue_by_day_data.groupby(["REPORT_DATE"]).agg({
+        data = data.groupby(["REPORT_DATE"]).agg({
             "REVENUE":"sum",
             "IS_CODE6_ENABLED":"first"
         }).reset_index()
     
-        if revenue_by_day_data.shape[0] < 30:
+        if data.shape[0] < 30:
             raise Exception("At least 30 days of data are required!")
 
         # Create a new row with the predicted REVENUE and update 'IS_CODE6_ENABLED' based on the code6_activation_status
@@ -182,7 +195,7 @@ class XGBForecaster:
 
         for day in range(n_days):
             # Lagging the data of the last recorded day
-            last_day_lagged_data = self.add_lag_to_df(revenue_by_day_data.iloc[-31:]).drop(columns=["REPORT_DATE","REVENUE"]).values
+            last_day_lagged_data = self.add_lag_to_df(data.iloc[-31:]).drop(columns=["REPORT_DATE","REVENUE"]).values
 
             # Updating the today's code6 status
             last_day_lagged_data[0][0]=  code6_activation_status[day] 
@@ -191,6 +204,6 @@ class XGBForecaster:
             predictions.append(self.model.predict(last_day_lagged_data))
 
             # Adding the new prediction to the df for further predictions when slicing
-            revenue_by_day_data = pd.concat([revenue_by_day_data, row_maker(predictions[-1], code6_activation_status[day])], ignore_index=True)
+            data = pd.concat([data, row_maker(predictions[-1], code6_activation_status[day])], ignore_index=True)
 
-        return revenue_by_day_data
+        return np.array(predictions)

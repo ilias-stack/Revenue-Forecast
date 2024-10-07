@@ -1,7 +1,10 @@
 # Folders to ignore
 DATA/
 **/.ipynb_checkpoints/
+**/__pycache__/
 
 # Files to ignore
 *.keras
 *.pickle
+*.csv
+*.env

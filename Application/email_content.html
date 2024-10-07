@@ -1,0 +1,33 @@
+<html>
+  <body>
+    <h1>Rapport quotidien</h1>
+    <p>Chers tous,</p>
+
+    <h3>Predictions pour les deux prochains jours :</h3>
+    <ul>
+      <li>Aujourd'hui : <strong>{prediction_day_1}</strong> MDH</li>
+      <li>Demain : <strong>{prediction_day_2}</strong> MDH</li>
+    </ul>
+
+    <h4>Bilan de la semaine :</h4>
+    <p>
+      Chiffre d'affaires total de la semaine :
+      <strong>{weekly_revenue}</strong> MDH
+    </p>
+
+    <h4>Prevision de variation du chiffre d'affaires :</h4>
+    <p>
+      Pourcentage de variation par rapport a hier :
+      <strong>{percentage_change}%</strong>
+    </p>
+
+    <img
+      src="cid:forecast_graph"
+      alt="Graphique de prevision"
+      style="max-width: 100%; height: auto"
+    />
+
+    <p>Merci,</p>
+    <p>Direction de la securisation de revenue</p>
+  </body>
+</html>
